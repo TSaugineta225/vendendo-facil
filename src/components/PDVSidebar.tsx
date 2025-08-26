@@ -39,60 +39,53 @@ const menuItems = [
 ];
 
 export function PDVSidebar() {
-  const { state, toggleSidebar } = useSidebar();
-  const [collapsed, setCollapsed] = useState(false);
+  const { state, toggleSidebar, open } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
 
   const isActive = (path: string) => currentPath === path;
 
-  const handleToggle = () => {
-    setCollapsed(!collapsed);
-    toggleSidebar();
-  };
-
   return (
-    <Sidebar className={`${collapsed ? "w-16" : "w-64"} transition-all duration-300 bg-pdv-sidebar border-r border-border`}>
+    <Sidebar className="transition-all duration-300 bg-pdv-sidebar border-r border-border" collapsible="icon">
       <SidebarContent>
         {/* Header */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between">
-            {!collapsed && (
-              <h2 className="text-xl font-bold text-foreground">Vendendo Fácil</h2>
+            {open && (
+              <h2 className="text-xl font-bold text-foreground bg-gradient-to-r from-pdv-success to-pdv-button bg-clip-text text-transparent">
+                💰 Vendendo Fácil
+              </h2>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleToggle}
-              className="hover:bg-sidebar-accent"
-            >
-              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </Button>
+            {!open && (
+              <div className="w-8 h-8 bg-gradient-to-r from-pdv-success to-pdv-button rounded-lg flex items-center justify-center">
+                <DollarSign className="h-4 w-4 text-white" />
+              </div>
+            )}
           </div>
         </div>
 
         {/* Main Navigation */}
         <SidebarGroup>
-          <SidebarGroupLabel className={collapsed ? "hidden" : ""}>
+          <SidebarGroupLabel className={!open ? "sr-only" : ""}>
             Sistema de Vendas
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild className="group">
                     <NavLink
                       to={item.url}
                       className={({ isActive }) =>
-                        `flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                        `flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 ${
                           isActive
-                            ? "bg-primary text-primary-foreground font-medium"
-                            : "hover:bg-sidebar-accent text-sidebar-foreground"
+                            ? "bg-gradient-to-r from-pdv-success to-pdv-button text-white shadow-lg scale-105"
+                            : "hover:bg-pdv-accent text-sidebar-foreground hover:scale-105 hover:shadow-md"
                         }`
                       }
                     >
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
+                      <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive(item.url) ? 'text-white' : 'text-muted-foreground'}`} />
+                      {open && <span className="font-medium">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -100,6 +93,29 @@ export function PDVSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Quick Actions - only show when expanded */}
+        {open && (
+          <div className="mt-auto p-4 border-t border-border">
+            <div className="space-y-2">
+              <Button 
+                className="w-full bg-gradient-to-r from-pdv-success to-pdv-button hover:shadow-lg transition-all"
+                size="sm"
+              >
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                Nova Venda
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full border-pdv-button/20 hover:bg-pdv-accent"
+                size="sm"
+              >
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Relatório Rápido
+              </Button>
+            </div>
+          </div>
+        )}
       </SidebarContent>
     </Sidebar>
   );

@@ -53,19 +53,31 @@ All colors MUST be HSL.
     --sidebar-border: 220 14% 18%;
     --sidebar-ring: 214 100% 60%;
     
-    /* PDV specific colors */
+    /* PDV Enhanced Colors */
     --pdv-header: 220 18% 8%;
     --pdv-sidebar: 220 18% 6%;
-    --pdv-button: 214 100% 60%;
-    --pdv-button-hover: 214 100% 55%;
-    --pdv-total: 142 70% 45%;
+    --pdv-button: 142 76% 36%;
+    --pdv-button-hover: 142 76% 32%;
+    --pdv-total: 142 76% 32%;
+    --pdv-success: 142 76% 40%;
+    --pdv-warning: 45 93% 47%;
+    --pdv-danger: 0 84% 60%;
+    --pdv-info: 214 100% 60%;
+    --pdv-accent: 142 76% 94%;
+    --pdv-light: 142 76% 96%;
     
     /* Payment method colors */
-    --payment-cash: 142 70% 45%;
+    --payment-cash: 142 76% 40%;
     --payment-card: 214 100% 60%;
     --payment-mobile: 280 80% 60%;
-    --payment-mpesa: 142 70% 45%;
+    --payment-mpesa: 142 76% 40%;
     --payment-mmola: 25 95% 53%;
+    --payment-visa: 214 100% 60%;
+    
+    /* Enhanced gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--pdv-button)), hsl(var(--pdv-button-hover)));
+    --gradient-success: linear-gradient(135deg, hsl(var(--pdv-success)), hsl(142 76% 35%));
+    --shadow-elegant: 0 10px 30px -10px hsl(var(--pdv-button) / 0.3);
   }
 
   .dark {
