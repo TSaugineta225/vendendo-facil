@@ -52,6 +52,28 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				success: {
+					DEFAULT: 'hsl(var(--success))',
+					foreground: 'hsl(var(--success-foreground))'
+				},
+				warning: {
+					DEFAULT: 'hsl(var(--warning))',
+					foreground: 'hsl(var(--warning-foreground))'
+				},
+				pdv: {
+					header: 'hsl(var(--pdv-header))',
+					sidebar: 'hsl(var(--pdv-sidebar))',
+					button: 'hsl(var(--pdv-button))',
+					'button-hover': 'hsl(var(--pdv-button-hover))',
+					total: 'hsl(var(--pdv-total))'
+				},
+				payment: {
+					cash: 'hsl(var(--payment-cash))',
+					card: 'hsl(var(--payment-card))',
+					mobile: 'hsl(var(--payment-mobile))',
+					mpesa: 'hsl(var(--payment-mpesa))',
+					mmola: 'hsl(var(--payment-mmola))'
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
