@@ -2,69 +2,65 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LucideIcon } from "lucide-react";
 
-interface PaymentMethod {
-  id: string;
-  name: string;
-  icon: LucideIcon;
-  color: string;
-  isAvailable: boolean;
-  processingFee?: number;
-}
+export type PaymentMethod = "dinheiro" | "visa" | "mpesa" | "mmola";
 
 interface PaymentMethodButtonProps {
   method: PaymentMethod;
-  isSelected: boolean;
-  onSelect: (methodId: string) => void;
-  total?: number;
+  label: string;
+  icon: LucideIcon;
+  selected: boolean;
+  onSelect: (method: PaymentMethod) => void;
+  disabled?: boolean;
 }
 
 export function PaymentMethodButton({ 
   method, 
-  isSelected, 
-  onSelect, 
-  total = 0 
+  label,
+  icon: Icon,
+  selected, 
+  onSelect,
+  disabled = false
 }: PaymentMethodButtonProps) {
-  const processingFeeAmount = method.processingFee ? (total * method.processingFee) / 100 : 0;
-  const finalTotal = total + processingFeeAmount;
+  const getMethodColor = () => {
+    switch (method) {
+      case "dinheiro": return "from-green-500 to-green-600";
+      case "visa": return "from-blue-500 to-blue-600";
+      case "mpesa": return "from-red-500 to-red-600";
+      case "mmola": return "from-purple-500 to-purple-600";
+      default: return "from-gray-500 to-gray-600";
+    }
+  };
 
   return (
     <Button
-      variant={isSelected ? "default" : "outline"}
+      variant={selected ? "default" : "outline"}
       className={`w-full justify-start p-4 h-auto transition-all ${
-        isSelected 
-          ? `bg-gradient-to-r ${method.color} text-white shadow-lg scale-105` 
-          : `hover:bg-accent hover:scale-105 border-2 ${!method.isAvailable ? 'opacity-50 cursor-not-allowed' : ''}`
+        selected 
+          ? `bg-gradient-to-r ${getMethodColor()} text-white shadow-lg scale-105` 
+          : `hover:bg-pdv-accent hover:scale-105 border-2 ${disabled ? 'opacity-50 cursor-not-allowed' : 'border-pdv-button/20'}`
       }`}
-      onClick={() => method.isAvailable && onSelect(method.id)}
-      disabled={!method.isAvailable}
+      onClick={() => !disabled && onSelect(method)}
+      disabled={disabled}
     >
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-3">
-          <method.icon className={`h-5 w-5 ${isSelected ? 'text-white' : 'text-muted-foreground'}`} />
+          <Icon className={`h-5 w-5 ${selected ? 'text-white' : 'text-pdv-button'}`} />
           <div className="text-left">
-            <div className="font-medium">{method.name}</div>
-            {method.processingFee && (
-              <div className={`text-xs ${isSelected ? 'text-white/80' : 'text-muted-foreground'}`}>
-                Taxa: {method.processingFee}%
-              </div>
-            )}
+            <div className={`font-medium ${selected ? 'text-white' : 'text-foreground'}`}>
+              {label}
+            </div>
           </div>
         </div>
         
         <div className="text-right">
-          {!method.isAvailable && (
+          {disabled && (
             <Badge variant="destructive" className="text-xs">
               Indisponível
             </Badge>
           )}
-          {method.processingFee && processingFeeAmount > 0 && (
-            <div className={`text-xs ${isSelected ? 'text-white/80' : 'text-muted-foreground'}`}>
-              +${processingFeeAmount.toFixed(2)}
-            </div>
-          )}
-          {isSelected && (
+          {selected && (
             <Badge className="bg-white/20 text-white border-white/30">
-              Selecionado
+              ✓
             </Badge>
           )}
         </div>

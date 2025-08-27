@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,37 +12,34 @@ import {
   CreditCard,
   DollarSign,
   Smartphone,
-  Printer
+  Printer,
+  Receipt,
+  Settings
 } from "lucide-react";
 import { toast } from "sonner";
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  stock: number;
-  category: string;
-}
-
-interface CartItem extends Product {
-  quantity: number;
-}
-
-const mockProducts: Product[] = [
-  { id: "1", name: "Coca-Cola 350ml", price: 2.50, stock: 50, category: "Bebidas" },
-  { id: "2", name: "Pão Francês", price: 0.50, stock: 100, category: "Padaria" },
-  { id: "3", name: "Leite Integral 1L", price: 4.20, stock: 30, category: "Laticínios" },
-  { id: "4", name: "Arroz 5kg", price: 25.90, stock: 20, category: "Grãos" },
-  { id: "5", name: "Feijão Preto 1kg", price: 8.50, stock: 15, category: "Grãos" },
-];
+import { ProductCard } from "@/components/ProductCard";
+import { CartItem as CartItemComponent } from "@/components/CartItem";
+import { PaymentMethodButton } from "@/components/PaymentMethodButton";
+import { SettingsModal } from "@/components/SettingsModal";
+import { useProducts, type Product } from "@/hooks/useProducts";
+import { useSettings } from "@/hooks/useSettings";
+import { useSales, type CartItem } from "@/hooks/useSales";
+import { type PaymentMethod } from "@/components/PaymentMethodButton";
 
 export default function PDV() {
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedPayment, setSelectedPayment] = useState("");
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | "">("");
+  const [discountAmount, setDiscountAmount] = useState(0);
+  
+  const { products, loading: productsLoading, updateStock } = useProducts();
+  const { settings } = useSettings();
+  const { processSale, loading: saleLoading } = useSales();
 
-  const filteredProducts = mockProducts.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.barcode?.includes(searchTerm) ||
+    product.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const addToCart = (product: Product) => {
@@ -66,7 +63,7 @@ export default function PDV() {
     if (newQuantity === 0) {
       removeFromCart(id);
     } else {
-      const product = mockProducts.find(p => p.id === id);
+      const product = products.find(p => p.id === id);
       if (product && newQuantity <= product.stock) {
         setCart(cart.map(item =>
           item.id === id ? { ...item, quantity: newQuantity } : item
@@ -77,15 +74,40 @@ export default function PDV() {
     }
   };
 
+  const applyDiscount = (id: string, discount: number) => {
+    setCart(cart.map(item =>
+      item.id === id ? { ...item, discount } : item
+    ));
+  };
+
   const removeFromCart = (id: string) => {
     setCart(cart.filter(item => item.id !== id));
   };
 
   const getTotalPrice = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    const subtotal = cart.reduce((total, item) => {
+      const itemTotal = item.price * item.quantity;
+      const itemDiscount = item.discount ? (itemTotal * item.discount) / 100 : 0;
+      return total + (itemTotal - itemDiscount);
+    }, 0);
+    
+    const taxAmount = (subtotal * parseFloat(settings.tax_rate)) / 100;
+    return subtotal + taxAmount - discountAmount;
   };
 
-  const handlePayment = () => {
+  const getSubtotal = () => {
+    return cart.reduce((total, item) => {
+      const itemTotal = item.price * item.quantity;
+      const itemDiscount = item.discount ? (itemTotal * item.discount) / 100 : 0;
+      return total + (itemTotal - itemDiscount);
+    }, 0);
+  };
+
+  const getTaxAmount = () => {
+    return (getSubtotal() * parseFloat(settings.tax_rate)) / 100;
+  };
+
+  const handlePayment = async () => {
     if (cart.length === 0) {
       toast.error("Carrinho vazio!");
       return;
@@ -95,10 +117,21 @@ export default function PDV() {
       return;
     }
     
-    // Here you would integrate with payment systems
-    toast.success(`Venda finalizada! Pagamento via ${selectedPayment}`);
-    setCart([]);
-    setSelectedPayment("");
+    try {
+      await processSale(
+        cart,
+        selectedPayment,
+        discountAmount,
+        parseFloat(settings.tax_rate)
+      );
+      
+      // Clear cart after successful sale
+      setCart([]);
+      setSelectedPayment("");
+      setDiscountAmount(0);
+    } catch (error) {
+      // Error already handled in hook
+    }
   };
 
   const printReceipt = () => {
@@ -107,6 +140,16 @@ export default function PDV() {
 
   return (
     <div className="p-6 h-full">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-pdv-button">Ponto de Venda</h1>
+        <div className="flex gap-2">
+          <SettingsModal />
+          <Badge variant="outline" className="bg-pdv-accent text-pdv-button">
+            {settings.currency_symbol} {settings.currency}
+          </Badge>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
         {/* Products Section */}
         <div className="lg:col-span-2 space-y-4">
@@ -114,7 +157,7 @@ export default function PDV() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Pesquisar produtos..."
+                placeholder="Pesquisar produtos, código de barras ou categoria..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -122,38 +165,21 @@ export default function PDV() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-            {filteredProducts.map((product) => (
-              <Card key={product.id} className="cursor-pointer hover:bg-accent/50 transition-colors">
-                <CardContent className="p-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-medium text-sm">{product.name}</h3>
-                      <Badge variant="secondary" className="text-xs">
-                        {product.category}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold text-primary">
-                        ${product.price.toFixed(2)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Estoque: {product.stock}
-                      </span>
-                    </div>
-                    <Button 
-                      onClick={() => addToCart(product)}
-                      className="w-full"
-                      size="sm"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Adicionar
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {productsLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pdv-button"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+              {filteredProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onAddToCart={addToCart}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Cart and Payment Section */}
@@ -170,38 +196,13 @@ export default function PDV() {
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {cart.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-2 border rounded">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          ${item.price.toFixed(2)} cada
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-8 text-center text-sm">{item.quantity}</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => removeFromCart(item.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
+                    <CartItemComponent
+                      key={item.id}
+                      item={item}
+                      onUpdateQuantity={updateQuantity}
+                      onRemove={removeFromCart}
+                      onApplyDiscount={applyDiscount}
+                    />
                   ))}
                 </div>
               )}
@@ -209,9 +210,43 @@ export default function PDV() {
               <Separator />
 
               <div className="space-y-2">
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Total:</span>
-                  <span className="text-pdv-total">${getTotalPrice().toFixed(2)}</span>
+                <div className="flex justify-between text-sm">
+                  <span>Subtotal:</span>
+                  <span>{settings.currency_symbol} {getSubtotal().toFixed(2)}</span>
+                </div>
+                
+                {parseFloat(settings.tax_rate) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span>IVA ({settings.tax_rate}%):</span>
+                    <span>{settings.currency_symbol} {getTaxAmount().toFixed(2)}</span>
+                  </div>
+                )}
+                
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-sm text-pdv-success">
+                    <span>Desconto:</span>
+                    <span>-{settings.currency_symbol} {discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                
+                <Separator />
+                
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold">Total:</span>
+                    <Input
+                      type="number"
+                      value={discountAmount}
+                      onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                      placeholder="Desconto"
+                      className="w-20 h-8 text-xs"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <span className="text-xl font-bold text-pdv-button">
+                    {settings.currency_symbol} {getTotalPrice().toFixed(2)}
+                  </span>
                 </div>
               </div>
             </CardContent>
@@ -223,38 +258,34 @@ export default function PDV() {
               <CardTitle>Método de Pagamento</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button
-                variant={selectedPayment === "dinheiro" ? "default" : "outline"}
-                className="w-full justify-start"
-                onClick={() => setSelectedPayment("dinheiro")}
-              >
-                <DollarSign className="h-4 w-4 mr-2" />
-                Dinheiro
-              </Button>
-              <Button
-                variant={selectedPayment === "visa" ? "default" : "outline"}
-                className="w-full justify-start"
-                onClick={() => setSelectedPayment("visa")}
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                Visa
-              </Button>
-              <Button
-                variant={selectedPayment === "mpesa" ? "default" : "outline"}
-                className="w-full justify-start"
-                onClick={() => setSelectedPayment("mpesa")}
-              >
-                <Smartphone className="h-4 w-4 mr-2" />
-                M-Pesa
-              </Button>
-              <Button
-                variant={selectedPayment === "mmola" ? "default" : "outline"}
-                className="w-full justify-start"
-                onClick={() => setSelectedPayment("mmola")}
-              >
-                <Smartphone className="h-4 w-4 mr-2" />
-                M-Mola
-              </Button>
+              <PaymentMethodButton
+                method="dinheiro"
+                label="Dinheiro"
+                icon={DollarSign}
+                selected={selectedPayment === "dinheiro"}
+                onSelect={setSelectedPayment}
+              />
+              <PaymentMethodButton
+                method="visa"
+                label="Visa/Mastercard"
+                icon={CreditCard}
+                selected={selectedPayment === "visa"}
+                onSelect={setSelectedPayment}
+              />
+              <PaymentMethodButton
+                method="mpesa"
+                label="M-Pesa"
+                icon={Smartphone}
+                selected={selectedPayment === "mpesa"}
+                onSelect={setSelectedPayment}
+              />
+              <PaymentMethodButton
+                method="mmola"
+                label="M-Mola"
+                icon={Smartphone}
+                selected={selectedPayment === "mmola"}
+                onSelect={setSelectedPayment}
+              />
             </CardContent>
           </Card>
 
@@ -262,16 +293,28 @@ export default function PDV() {
           <div className="space-y-2">
             <Button
               onClick={handlePayment}
-              className="w-full bg-pdv-button hover:bg-pdv-button-hover"
+              disabled={cart.length === 0 || !selectedPayment || saleLoading}
+              className="w-full bg-gradient-to-r from-pdv-success to-pdv-button hover:shadow-lg"
               size="lg"
             >
-              Finalizar Venda
+              {saleLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Processando...
+                </div>
+              ) : (
+                <>
+                  <Receipt className="h-4 w-4 mr-2" />
+                  Finalizar Venda
+                </>
+              )}
             </Button>
             <Button
               onClick={printReceipt}
               variant="outline"
-              className="w-full"
+              className="w-full border-pdv-button/20 hover:bg-pdv-accent"
               size="lg"
+              disabled={cart.length === 0}
             >
               <Printer className="h-4 w-4 mr-2" />
               Imprimir Recibo
