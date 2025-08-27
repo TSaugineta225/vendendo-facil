@@ -26,6 +26,9 @@ import { useSettings } from "@/hooks/useSettings";
 import { useSales, type CartItem } from "@/hooks/useSales";
 import { type PaymentMethod } from "@/components/PaymentMethodButton";
 
+// Debug: Check if icons are properly imported
+console.log('Icon imports check:', { DollarSign, CreditCard, Smartphone });
+
 export default function PDV() {
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);

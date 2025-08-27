@@ -21,6 +21,11 @@ export function PaymentMethodButton({
   onSelect,
   disabled = false
 }: PaymentMethodButtonProps) {
+  // Add defensive check for Icon component
+  if (!Icon) {
+    console.error('PaymentMethodButton: icon is undefined for method:', method);
+    return null;
+  }
   const getMethodColor = () => {
     switch (method) {
       case "dinheiro": return "from-green-500 to-green-600";
@@ -53,16 +58,11 @@ export function PaymentMethodButton({
         </div>
         
         <div className="text-right">
-          {disabled && (
-            <Badge variant="destructive" className="text-xs">
-              Indisponível
-            </Badge>
-          )}
-          {selected && (
-            <Badge className="bg-white/20 text-white border-white/30">
-              ✓
-            </Badge>
-          )}
+          {disabled ? (
+            <span className="text-xs text-destructive">Indisponível</span>
+          ) : selected ? (
+            <span className="text-xs text-white">✓ Selecionado</span>
+          ) : null}
         </div>
       </div>
     </Button>
