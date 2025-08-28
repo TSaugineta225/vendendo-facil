@@ -9,6 +9,7 @@ import { useProducts, type Product } from "@/hooks/useProducts";
 import { useSettings } from "@/hooks/useSettings";
 import { useSales, type CartItem } from "@/hooks/useSales";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfiles } from "@/hooks/useProfiles";
 import { type PaymentMethod } from "@/components/PaymentMethodButton";
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
@@ -23,6 +24,7 @@ export default function PDV() {
   const { settings } = useSettings();
   const { processSale, loading: saleLoading } = useSales();
   const { user, loading: authLoading, signOut } = useAuth();
+  const { canProcessSales, profile, loading: profileLoading } = useProfiles();
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -150,6 +152,27 @@ export default function PDV() {
         open={authModalOpen} 
         onOpenChange={setAuthModalOpen}
       />
+    );
+  }
+
+  // Check if user has permission to process sales
+  if (!profileLoading && !canProcessSales()) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center p-8">
+          <h2 className="text-2xl font-bold text-destructive mb-4">Acesso Negado</h2>
+          <p className="text-muted-foreground mb-4">
+            Você não tem permissão para acessar o sistema PDV.
+          </p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Entre em contato com o administrador para solicitar acesso.
+          </p>
+          <Button variant="outline" onClick={handleSignOut}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Sair
+          </Button>
+        </div>
+      </div>
     );
   }
 

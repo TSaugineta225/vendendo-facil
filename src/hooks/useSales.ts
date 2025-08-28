@@ -10,6 +10,7 @@ export interface CartItem extends Product {
 
 interface SaleData {
   customer_id?: string;
+  cashier_id: string;
   total_amount: number;
   discount_amount: number;
   tax_amount: number;
@@ -38,6 +39,35 @@ export function useSales() {
     setLoading(true);
     
     try {
+      // Input validation
+      if (!cart || cart.length === 0) {
+        throw new Error('Carrinho vazio');
+      }
+      
+      if (!paymentMethod || paymentMethod.trim() === '') {
+        throw new Error('Método de pagamento é obrigatório');
+      }
+      
+      if (discountAmount < 0) {
+        throw new Error('Desconto não pode ser negativo');
+      }
+      
+      if (taxRate < 0 || taxRate > 100) {
+        throw new Error('Taxa de imposto deve estar entre 0 e 100%');
+      }
+      
+      // Validate cart items
+      for (const item of cart) {
+        if (item.quantity <= 0) {
+          throw new Error(`Quantidade inválida para ${item.name}`);
+        }
+        if (item.price < 0) {
+          throw new Error(`Preço inválido para ${item.name}`);
+        }
+        if (item.quantity > item.stock) {
+          throw new Error(`Estoque insuficiente para ${item.name}`);
+        }
+      }
       const subtotal = cart.reduce((sum, item) => {
         const itemTotal = item.price * item.quantity;
         const itemDiscount = item.discount ? (itemTotal * item.discount) / 100 : 0;
@@ -47,8 +77,15 @@ export function useSales() {
       const taxAmount = (subtotal * taxRate) / 100;
       const totalAmount = subtotal + taxAmount - discountAmount;
 
+      // Get current user for cashier_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuário deve estar autenticado para processar vendas');
+      }
+
       const saleData: SaleData = {
         customer_id: customerId,
+        cashier_id: user.id,
         total_amount: totalAmount,
         discount_amount: discountAmount,
         tax_amount: taxAmount,

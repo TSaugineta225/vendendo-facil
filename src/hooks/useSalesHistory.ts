@@ -44,14 +44,7 @@ export function useSalesHistory() {
     try {
       let query = supabase
         .from('sales')
-        .select(`
-          *,
-          customers (name, email, phone),
-          sale_items (
-            *,
-            products (name, category)
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (startDate) {
@@ -61,10 +54,55 @@ export function useSalesHistory() {
         query = query.lte('created_at', endDate);
       }
 
-      const { data, error } = await query.limit(100);
+      const { data: salesData, error: salesError } = await query.limit(100);
 
-      if (error) throw error;
-      setSales(data || []);
+      if (salesError) throw salesError;
+
+      // Fetch related data separately to avoid complex join issues
+      const salesWithDetails = await Promise.all(
+        (salesData || []).map(async (sale) => {
+          // Fetch customer info
+          let customer = null;
+          if (sale.customer_id) {
+            const { data: customerData } = await supabase
+              .from('customers')
+              .select('name, email, phone')
+              .eq('id', sale.customer_id)
+              .single();
+            customer = customerData;
+          }
+
+          // Fetch sale items
+          const { data: saleItemsData } = await supabase
+            .from('sale_items')
+            .select('*')
+            .eq('sale_id', sale.id);
+
+          // Fetch product details for each sale item
+          const saleItemsWithProducts = await Promise.all(
+            (saleItemsData || []).map(async (item) => {
+              const { data: productData } = await supabase
+                .from('products')
+                .select('name, category')
+                .eq('id', item.product_id)
+                .single();
+
+              return {
+                ...item,
+                products: productData || { name: 'Produto não encontrado', category: 'N/A' }
+              };
+            })
+          );
+
+          return {
+            ...sale,
+            customers: customer,
+            sale_items: saleItemsWithProducts
+          };
+        })
+      );
+
+      setSales(salesWithDetails);
     } catch (error) {
       console.error('Error fetching sales:', error);
       toast.error('Erro ao carregar histórico de vendas');
@@ -80,21 +118,52 @@ export function useSalesHistory() {
 
   const getSaleById = async (saleId: string): Promise<Sale | null> => {
     try {
-      const { data, error } = await supabase
+      const { data: saleData, error: saleError } = await supabase
         .from('sales')
-        .select(`
-          *,
-          customers (name, email, phone),
-          sale_items (
-            *,
-            products (name, category)
-          )
-        `)
+        .select('*')
         .eq('id', saleId)
         .single();
 
-      if (error) throw error;
-      return data;
+      if (saleError) throw saleError;
+
+      // Fetch customer info
+      let customer = null;
+      if (saleData.customer_id) {
+        const { data: customerData } = await supabase
+          .from('customers')
+          .select('name, email, phone')
+          .eq('id', saleData.customer_id)
+          .single();
+        customer = customerData;
+      }
+
+      // Fetch sale items
+      const { data: saleItemsData } = await supabase
+        .from('sale_items')
+        .select('*')
+        .eq('sale_id', saleId);
+
+      // Fetch product details for each sale item
+      const saleItemsWithProducts = await Promise.all(
+        (saleItemsData || []).map(async (item) => {
+          const { data: productData } = await supabase
+            .from('products')
+            .select('name, category')
+            .eq('id', item.product_id)
+            .single();
+
+          return {
+            ...item,
+            products: productData || { name: 'Produto não encontrado', category: 'N/A' }
+          };
+        })
+      );
+
+      return {
+        ...saleData,
+        customers: customer,
+        sale_items: saleItemsWithProducts
+      };
     } catch (error) {
       console.error('Error fetching sale:', error);
       toast.error('Erro ao carregar venda');

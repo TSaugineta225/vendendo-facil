@@ -20,13 +20,16 @@ export function ProductSearch({ products, onAddToCart, loading }: ProductSearchP
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (searchTerm.length > 0) {
+    // Input sanitization and validation
+    const sanitizedTerm = searchTerm.replace(/[<>]/g, '').trim();
+    
+    if (sanitizedTerm.length > 0 && sanitizedTerm.length <= 100) {
       const filtered = products.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.barcode?.includes(searchTerm) ||
-        product.category.toLowerCase().includes(searchTerm.toLowerCase())
+        product.name.toLowerCase().includes(sanitizedTerm.toLowerCase()) ||
+        product.barcode?.includes(sanitizedTerm) ||
+        product.category.toLowerCase().includes(sanitizedTerm.toLowerCase())
       );
-      setFilteredProducts(filtered);
+      setFilteredProducts(filtered.slice(0, 20)); // Limit results for performance
       setIsOpen(true);
     } else {
       setFilteredProducts([]);
