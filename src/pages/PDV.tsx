@@ -1,22 +1,35 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { PDVHeader } from "@/components/PDVHeader";
-import { ProductGrid } from "@/components/ProductGrid";
+import { ProductSearch } from "@/components/ProductSearch";
+import { CartDisplay } from "@/components/CartDisplay";
 import { OrderSummary } from "@/components/OrderSummary";
+import { AuthModal } from "@/components/AuthModal";
 import { useProducts, type Product } from "@/hooks/useProducts";
 import { useSettings } from "@/hooks/useSettings";
 import { useSales, type CartItem } from "@/hooks/useSales";
+import { useAuth } from "@/hooks/useAuth";
 import { type PaymentMethod } from "@/components/PaymentMethodButton";
+import { Button } from "@/components/ui/button";
+import { LogOut, User } from "lucide-react";
 
 export default function PDV() {
-  const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | "">("");
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   
   const { products, loading: productsLoading } = useProducts();
   const { settings } = useSettings();
   const { processSale, loading: saleLoading } = useSales();
+  const { user, loading: authLoading, signOut } = useAuth();
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setAuthModalOpen(true);
+    }
+  }, [user, authLoading]);
 
   const addToCart = (product: Product) => {
     const existingItem = cart.find(item => item.id === product.id);
@@ -113,33 +126,84 @@ export default function PDV() {
     toast.success("Recibo visualizado!");
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    setCart([]);
+    setSelectedPayment("");
+    setDiscountAmount(0);
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <AuthModal 
+        open={authModalOpen} 
+        onOpenChange={setAuthModalOpen}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header estilo Odoo */}
-        <PDVHeader
-          currencySymbol={settings.currency_symbol}
-          currency={settings.currency}
-          companyName={settings.company_name}
-          cartCount={getTotalItems()}
-          cartTotal={getTotalPrice()}
-        />
+        {/* Header com informações do usuário */}
+        <div className="bg-white rounded-lg shadow-sm border mb-6 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-primary">Sistema PDV</h1>
+              <p className="text-muted-foreground">{settings.company_name}</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Usuário logado:</p>
+                <p className="font-medium flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  {user.email}
+                </p>
+              </div>
+              <Button variant="outline" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sair
+              </Button>
+            </div>
+          </div>
+        </div>
 
-        {/* Layout principal - estilo Odoo */}
-        <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
-          {/* Grid de produtos - 4/7 do espaço em telas grandes */}
-          <div className="lg:col-span-5 space-y-4">
-            <ProductGrid
-              products={products}
-              loading={productsLoading}
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              onAddToCart={addToCart}
+        {/* Layout principal reorganizado */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Pesquisa de produtos e carrinho - 8/12 do espaço */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* Widget de pesquisa de produtos */}
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <h2 className="text-lg font-semibold mb-4">Adicionar Produtos</h2>
+              <ProductSearch
+                products={products}
+                onAddToCart={addToCart}
+                loading={productsLoading}
+              />
+            </div>
+
+            {/* Display do carrinho */}
+            <CartDisplay
+              cart={cart}
+              onUpdateQuantity={updateQuantity}
+              onRemoveFromCart={removeFromCart}
+              onApplyDiscount={applyDiscount}
             />
           </div>
 
-          {/* Resumo do pedido - 3/7 do espaço em telas grandes */}
-          <div className="lg:col-span-2">
+          {/* Resumo do pedido e pagamento - 4/12 do espaço */}
+          <div className="lg:col-span-4">
             <div className="sticky top-4">
               <OrderSummary
                 cart={cart}
