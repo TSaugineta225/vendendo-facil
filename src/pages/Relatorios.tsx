@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,9 @@ import {
   Calendar,
   Download
 } from "lucide-react";
+import { AuthGuard } from "@/components/AuthGuard";
+import { useSalesHistory } from "@/hooks/useSalesHistory";
+import { toast } from "sonner";
 
 const mockSalesData = {
   daily: {
@@ -64,8 +67,30 @@ const paymentMethodColors = {
 
 export default function Relatorios() {
   const [selectedPeriod, setSelectedPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
+  const { sales, loading, getSalesStats } = useSalesHistory();
+  const [salesStats, setSalesStats] = useState<any>(null);
 
-  const currentData = mockSalesData[selectedPeriod];
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const stats = await getSalesStats();
+        setSalesStats(stats);
+      } catch (error) {
+        console.error('Error fetching sales stats:', error);
+        toast.error('Erro ao carregar estatísticas');
+      }
+    };
+
+    fetchStats();
+  }, [getSalesStats]);
+
+  const currentData = salesStats || {
+    totalSales: 0,
+    totalOrders: 0,
+    totalProducts: 0,
+    topSeller: "N/A",
+    change: 0
+  };
   const isPositiveChange = currentData.change > 0;
 
   const periodLabels = {
@@ -80,7 +105,8 @@ export default function Relatorios() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <AuthGuard allowRoles={['admin', 'cashier']}>
+      <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Relatórios de Vendas</h1>
@@ -109,7 +135,7 @@ export default function Relatorios() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Vendas Totais</p>
-                <p className="text-2xl font-bold">${currentData.totalSales.toFixed(2)}</p>
+                <p className="text-2xl font-bold">MT {currentData.totalSales.toFixed(2)}</p>
                 <div className="flex items-center mt-1">
                   {isPositiveChange ? (
                     <TrendingUp className="h-4 w-4 text-success mr-1" />
@@ -134,7 +160,7 @@ export default function Relatorios() {
                 <p className="text-sm text-muted-foreground">Total de Pedidos</p>
                 <p className="text-2xl font-bold">{currentData.totalOrders}</p>
                 <p className="text-sm text-muted-foreground">
-                  Média: ${(currentData.totalSales / currentData.totalOrders).toFixed(2)} por pedido
+                  Média: MT {currentData.totalOrders > 0 ? (currentData.totalSales / currentData.totalOrders).toFixed(2) : '0.00'} por pedido
                 </p>
               </div>
               <ShoppingCart className="h-8 w-8 text-primary" />
@@ -194,7 +220,7 @@ export default function Relatorios() {
                   <TableRow key={index}>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>{product.quantity}</TableCell>
-                    <TableCell>${product.revenue.toFixed(2)}</TableCell>
+                    <TableCell>MT {product.revenue.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -221,7 +247,7 @@ export default function Relatorios() {
                 {mockRecentSales.map((sale) => (
                   <TableRow key={sale.id}>
                     <TableCell className="font-medium">{sale.customer}</TableCell>
-                    <TableCell>${sale.total.toFixed(2)}</TableCell>
+                    <TableCell>MT {sale.total.toFixed(2)}</TableCell>
                     <TableCell>
                       <Badge variant={paymentMethodColors[sale.payment as keyof typeof paymentMethodColors]}>
                         {sale.payment}
@@ -244,28 +270,29 @@ export default function Relatorios() {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 border rounded-lg">
-              <p className="text-2xl font-bold text-success">$450.80</p>
+              <p className="text-2xl font-bold text-success">MT 450.80</p>
               <p className="text-sm text-muted-foreground">Dinheiro</p>
               <Badge variant="success" className="mt-1">36%</Badge>
             </div>
             <div className="text-center p-4 border rounded-lg">
-              <p className="text-2xl font-bold text-primary">$320.50</p>
+              <p className="text-2xl font-bold text-primary">MT 320.50</p>
               <p className="text-sm text-muted-foreground">Visa</p>
               <Badge variant="default" className="mt-1">26%</Badge>
             </div>
             <div className="text-center p-4 border rounded-lg">
-              <p className="text-2xl font-bold text-secondary">$290.20</p>
+              <p className="text-2xl font-bold text-secondary">MT 290.20</p>
               <p className="text-sm text-muted-foreground">M-Pesa</p>
               <Badge variant="secondary" className="mt-1">23%</Badge>
             </div>
             <div className="text-center p-4 border rounded-lg">
-              <p className="text-2xl font-bold text-warning">$189.00</p>
+              <p className="text-2xl font-bold text-warning">MT 189.00</p>
               <p className="text-sm text-muted-foreground">M-Mola</p>
               <Badge variant="warning" className="mt-1">15%</Badge>
             </div>
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </AuthGuard>
   );
 }

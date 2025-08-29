@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Search, Plus, Edit, Eye, Phone, Mail, MapPin, Users, DollarSign } from "lucide-react";
 import { toast } from "sonner";
+import { AuthGuard } from "@/components/AuthGuard";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Customer {
   id: string;
@@ -64,7 +66,42 @@ const mockCustomers: Customer[] = [
 ];
 
 export default function Clientes() {
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      // Map database fields to component expected format
+      const mappedCustomers = data?.map(customer => ({
+        id: customer.id,
+        name: customer.name,
+        email: customer.email || '',
+        phone: customer.phone || '',
+        address: customer.address || '',
+        totalPurchases: 0, // Will be calculated from sales
+        lastPurchase: new Date().toISOString().split('T')[0],
+        status: 'active' as const
+      })) || [];
+      
+      setCustomers(mappedCustomers);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      toast.error('Erro ao carregar clientes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
   const [searchTerm, setSearchTerm] = useState("");
   const [showDialog, setShowDialog] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -97,32 +134,45 @@ export default function Clientes() {
     setShowDialog(true);
   };
 
-  const handleSaveCustomer = (customerData: Partial<Customer>) => {
-    if (selectedCustomer) {
-      setCustomers(customers.map(c => 
-        c.id === selectedCustomer.id ? { ...c, ...customerData } : c
-      ));
-      toast.success("Cliente atualizado com sucesso!");
-    } else {
-      const newCustomer: Customer = {
-        id: Date.now().toString(),
-        name: "",
-        email: "",
-        phone: "",
-        address: "",
-        totalPurchases: 0,
-        lastPurchase: new Date().toISOString().split('T')[0],
-        status: "active",
-        ...customerData
-      };
-      setCustomers([...customers, newCustomer]);
-      toast.success("Cliente adicionado com sucesso!");
+  const handleSaveCustomer = async (customerData: Partial<Customer>) => {
+    try {
+      if (selectedCustomer) {
+        const { error } = await supabase
+          .from('customers')
+          .update({
+            name: customerData.name,
+            email: customerData.email,
+            phone: customerData.phone,
+            address: customerData.address
+          })
+          .eq('id', selectedCustomer.id);
+
+        if (error) throw error;
+        toast.success("Cliente atualizado com sucesso!");
+      } else {
+        const { error } = await supabase
+          .from('customers')
+          .insert({
+            name: customerData.name,
+            email: customerData.email,
+            phone: customerData.phone,
+            address: customerData.address
+          });
+
+        if (error) throw error;
+        toast.success("Cliente adicionado com sucesso!");
+      }
+      setShowDialog(false);
+      await fetchCustomers();
+    } catch (error) {
+      console.error('Error saving customer:', error);
+      toast.error("Erro ao salvar cliente");
     }
-    setShowDialog(false);
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <AuthGuard allowRoles={['admin', 'cashier']}>
+      <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Gestão de Clientes</h1>
@@ -288,7 +338,8 @@ export default function Clientes() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </AuthGuard>
   );
 }
 
