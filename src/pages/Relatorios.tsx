@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -12,10 +13,15 @@ import {
   Users, 
   Package,
   Calendar,
-  Download
+  Download,
+  BarChart3,
+  PieChart,
+  TrendingDownIcon
 } from "lucide-react";
 import { AuthGuard } from "@/components/AuthGuard";
 import { useSalesHistory } from "@/hooks/useSalesHistory";
+import { SalesChart } from "@/components/SalesChart";
+import { ExportButton } from "@/components/ExportButton";
 import { toast } from "sonner";
 
 const mockSalesData = {
@@ -104,29 +110,55 @@ export default function Relatorios() {
     console.log("Exportando relatório...");
   };
 
+  // Mock data for charts
+  const salesTrendData = [
+    { name: 'Seg', vendas: 1200, receita: 4500 },
+    { name: 'Ter', vendas: 800, receita: 3200 },
+    { name: 'Qua', vendas: 1500, receita: 5800 },
+    { name: 'Qui', vendas: 900, receita: 3900 },
+    { name: 'Sex', vendas: 2100, receita: 8200 },
+    { name: 'Sáb', vendas: 1800, receita: 7100 },
+    { name: 'Dom', vendas: 1000, receita: 4200 }
+  ];
+
+  const paymentMethodData = [
+    { name: 'Dinheiro', value: 450.80, color: 'hsl(var(--success))' },
+    { name: 'Visa', value: 320.50, color: 'hsl(var(--primary))' },
+    { name: 'M-Pesa', value: 290.20, color: 'hsl(var(--secondary))' },
+    { name: 'M-Mola', value: 189.00, color: 'hsl(var(--warning))' }
+  ];
+
+  const topProductsChart = [
+    { name: 'Coca-Cola', vendas: 45 },
+    { name: 'Pão Francês', vendas: 120 },
+    { name: 'Leite 1L', vendas: 25 },
+    { name: 'Arroz 5kg', vendas: 8 },
+    { name: 'Feijão 1kg', vendas: 12 }
+  ];
+
   return (
-    <AuthGuard allowRoles={['admin', 'cashier']}>
+    <AuthGuard allowRoles={['admin']}>
       <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Relatórios de Vendas</h1>
-        <div className="flex items-center gap-4">
-          <Select value={selectedPeriod} onValueChange={(value: "daily" | "weekly" | "monthly") => setSelectedPeriod(value)}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="daily">Relatório Diário</SelectItem>
-              <SelectItem value="weekly">Relatório Semanal</SelectItem>
-              <SelectItem value="monthly">Relatório Mensal</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={handleExportReport}>
-            <Download className="h-4 w-4 mr-2" />
-            Exportar
-          </Button>
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Dashboard de Vendas</h1>
+            <p className="text-muted-foreground">Análise completa e exportação de dados</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <Select value={selectedPeriod} onValueChange={(value: "daily" | "weekly" | "monthly") => setSelectedPeriod(value)}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Hoje</SelectItem>
+                <SelectItem value="weekly">Esta Semana</SelectItem>
+                <SelectItem value="monthly">Este Mês</SelectItem>
+              </SelectContent>
+            </Select>
+            <ExportButton period={selectedPeriod} data={currentData} />
+          </div>
         </div>
-      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -199,99 +231,189 @@ export default function Relatorios() {
         </Card>
       </div>
 
-      {/* Charts and Tables Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Products */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Produtos Mais Vendidos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>Qtd</TableHead>
-                  <TableHead>Receita</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockTopProducts.map((product, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell>{product.quantity}</TableCell>
-                    <TableCell>MT {product.revenue.toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {/* Dashboard com abas */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="trends">Tendências</TabsTrigger>
+            <TabsTrigger value="products">Produtos</TabsTrigger>
+            <TabsTrigger value="payments">Pagamentos</TabsTrigger>
+          </TabsList>
 
-        {/* Recent Sales */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Vendas Recentes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Pagamento</TableHead>
-                  <TableHead>Hora</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockRecentSales.map((sale) => (
-                  <TableRow key={sale.id}>
-                    <TableCell className="font-medium">{sale.customer}</TableCell>
-                    <TableCell>MT {sale.total.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Badge variant={paymentMethodColors[sale.payment as keyof typeof paymentMethodColors]}>
-                        {sale.payment}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{sale.time}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+          <TabsContent value="overview" className="space-y-6">
+            {/* Gráfico de vendas por tempo */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Tendência de Vendas - {periodLabels[selectedPeriod]}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SalesChart 
+                  data={salesTrendData} 
+                  type="line" 
+                  dataKey="receita" 
+                  nameKey="name"
+                  height={350}
+                />
+              </CardContent>
+            </Card>
 
-      {/* Payment Methods Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Resumo por Método de Pagamento - {periodLabels[selectedPeriod]}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 border rounded-lg">
-              <p className="text-2xl font-bold text-success">MT 450.80</p>
-              <p className="text-sm text-muted-foreground">Dinheiro</p>
-              <Badge variant="success" className="mt-1">36%</Badge>
+            {/* Tabelas lado a lado */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Produtos Mais Vendidos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produto</TableHead>
+                        <TableHead>Qtd</TableHead>
+                        <TableHead>Receita</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {mockTopProducts.map((product, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{product.name}</TableCell>
+                          <TableCell>{product.quantity}</TableCell>
+                          <TableCell>MT {product.revenue.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Vendas Recentes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead>Pagamento</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {mockRecentSales.slice(0, 5).map((sale) => (
+                        <TableRow key={sale.id}>
+                          <TableCell className="font-medium">{sale.customer}</TableCell>
+                          <TableCell>MT {sale.total.toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Badge variant={paymentMethodColors[sale.payment as keyof typeof paymentMethodColors]}>
+                              {sale.payment}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
             </div>
-            <div className="text-center p-4 border rounded-lg">
-              <p className="text-2xl font-bold text-primary">MT 320.50</p>
-              <p className="text-sm text-muted-foreground">Visa</p>
-              <Badge variant="default" className="mt-1">26%</Badge>
+          </TabsContent>
+
+          <TabsContent value="trends" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Volume de Vendas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <SalesChart 
+                    data={salesTrendData} 
+                    type="bar" 
+                    dataKey="vendas" 
+                    nameKey="name"
+                    height={300}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Receita por Dia</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <SalesChart 
+                    data={salesTrendData} 
+                    type="line" 
+                    dataKey="receita" 
+                    nameKey="name"
+                    height={300}
+                  />
+                </CardContent>
+              </Card>
             </div>
-            <div className="text-center p-4 border rounded-lg">
-              <p className="text-2xl font-bold text-secondary">MT 290.20</p>
-              <p className="text-sm text-muted-foreground">M-Pesa</p>
-              <Badge variant="secondary" className="mt-1">23%</Badge>
+          </TabsContent>
+
+          <TabsContent value="products" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Análise de Produtos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SalesChart 
+                  data={topProductsChart} 
+                  type="bar" 
+                  dataKey="vendas" 
+                  nameKey="name"
+                  height={400}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="payments" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Distribuição por Método de Pagamento</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <SalesChart 
+                    data={paymentMethodData} 
+                    type="pie" 
+                    dataKey="value" 
+                    nameKey="name"
+                    height={350}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Resumo por Método de Pagamento</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 gap-4">
+                    {paymentMethodData.map((method, index) => (
+                      <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="w-4 h-4 rounded-full" 
+                            style={{ backgroundColor: method.color }}
+                          ></div>
+                          <span className="font-medium">{method.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold">MT {method.value.toFixed(2)}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {((method.value / paymentMethodData.reduce((sum, p) => sum + p.value, 0)) * 100).toFixed(1)}%
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-            <div className="text-center p-4 border rounded-lg">
-              <p className="text-2xl font-bold text-warning">MT 189.00</p>
-              <p className="text-sm text-muted-foreground">M-Mola</p>
-              <Badge variant="warning" className="mt-1">15%</Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </AuthGuard>
   );

@@ -177,38 +177,28 @@ export default function PDV() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header com informações do usuário */}
-        <div className="bg-white rounded-lg shadow-sm border mb-6 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-primary">Sistema PDV</h1>
-              <p className="text-muted-foreground">{settings.company_name}</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Usuário logado:</p>
-                <p className="font-medium flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  {user.email}
-                </p>
-              </div>
-              <Button variant="outline" onClick={handleSignOut}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Sair
-              </Button>
-            </div>
+    <div className="min-h-screen bg-background p-2">
+      <div className="max-w-6xl mx-auto">
+        {/* Header minimalista */}
+        <div className="flex items-center justify-between mb-4 p-3 bg-card rounded-lg border">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
+            <span className="font-medium text-foreground">PDV</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span>{user.email}</span>
+            <Button variant="ghost" size="sm" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
-        {/* Layout principal reorganizado */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Pesquisa de produtos e carrinho - 8/12 do espaço */}
-          <div className="lg:col-span-8 space-y-6">
-            {/* Widget de pesquisa de produtos */}
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-lg font-semibold mb-4">Adicionar Produtos</h2>
+        {/* Layout simples */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Pesquisa e carrinho - 2/3 do espaço */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Pesquisa minimalista */}
+            <div className="bg-card rounded-lg border p-4">
               <ProductSearch
                 products={products}
                 onAddToCart={addToCart}
@@ -216,7 +206,7 @@ export default function PDV() {
               />
             </div>
 
-            {/* Display do carrinho */}
+            {/* Carrinho simplificado */}
             <CartDisplay
               cart={cart}
               onUpdateQuantity={updateQuantity}
@@ -225,8 +215,8 @@ export default function PDV() {
             />
           </div>
 
-          {/* Resumo do pedido e pagamento - 4/12 do espaço */}
-          <div className="lg:col-span-4">
+          {/* Resumo compacto */}
+          <div className="lg:col-span-1">
             <div className="sticky top-4">
               <OrderSummary
                 cart={cart}
