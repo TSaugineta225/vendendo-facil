@@ -171,7 +171,7 @@ export default function Clientes() {
   };
 
   return (
-    <AuthGuard allowRoles={['admin', 'cashier']}>
+    <AuthGuard requiredRole="admin">
       <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">

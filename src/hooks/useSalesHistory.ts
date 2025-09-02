@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useCustomerName } from './useCustomers';
 
 interface Sale {
   id: string;
@@ -37,7 +38,8 @@ interface SaleItem {
 
 export function useSalesHistory() {
   const [sales, setSales] = useState<Sale[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const { getCustomerName } = useCustomerName();
 
   const fetchSales = async (startDate?: string, endDate?: string) => {
     setLoading(true);
@@ -58,18 +60,13 @@ export function useSalesHistory() {
 
       if (salesError) throw salesError;
 
-      // Fetch related data separately to avoid complex join issues
+      // Fetch related data separately using secure functions
       const salesWithDetails = await Promise.all(
         (salesData || []).map(async (sale) => {
-          // Fetch customer info
-          let customer = null;
+          // Fetch customer name using secure function
+          let customerName = null;
           if (sale.customer_id) {
-            const { data: customerData } = await supabase
-              .from('customers')
-              .select('name, email, phone')
-              .eq('id', sale.customer_id)
-              .single();
-            customer = customerData;
+            customerName = await getCustomerName(sale.customer_id);
           }
 
           // Fetch sale items
@@ -96,7 +93,7 @@ export function useSalesHistory() {
 
           return {
             ...sale,
-            customers: customer,
+            customers: customerName ? { name: customerName } : null,
             sale_items: saleItemsWithProducts
           };
         })
@@ -126,15 +123,10 @@ export function useSalesHistory() {
 
       if (saleError) throw saleError;
 
-      // Fetch customer info
-      let customer = null;
+      // Fetch customer name using secure function
+      let customerName = null;
       if (saleData.customer_id) {
-        const { data: customerData } = await supabase
-          .from('customers')
-          .select('name, email, phone')
-          .eq('id', saleData.customer_id)
-          .single();
-        customer = customerData;
+        customerName = await getCustomerName(saleData.customer_id);
       }
 
       // Fetch sale items
@@ -161,7 +153,7 @@ export function useSalesHistory() {
 
       return {
         ...saleData,
-        customers: customer,
+        customers: customerName ? { name: customerName } : null,
         sale_items: saleItemsWithProducts
       };
     } catch (error) {
